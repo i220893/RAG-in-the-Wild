@@ -1,35 +1,39 @@
 # RAG in the Wild — Case Study Assignment
 
-This assignment is framed as a **case study**: you work with a real-world-style corpus (web search results across multiple domains) and implement four advanced RAG strategies—RAG Fusion, HyDE, CRAG, and Graph RAG—to see which best handles noisy retrieval and varied question types. See **ASSIGNMENT.md** for the full scenario and requirements.
+This project implements and evaluates four advanced Retrieval-Augmented Generation (RAG) strategies—**RAG Fusion**, **HyDE**, **CRAG**, and **Graph RAG**—using a real-world-style corpus of web search results.
 
-## Requirements
+The goal is to analyze how different retrieval techniques handle noisy data and varied question types to determine the most reliable pipeline for a smart assistant.
 
-- Python 3.9+
-- Node.js 18+ (for the React frontend)
+## ✨ Key Features
+- **Advanced RAG Pipelines**: Implementation of HyDE, RAG Fusion, Corrective RAG (CRAG), and Graph RAG.
+- **Global Corpus Indexing**: Efficient vector search using ChromaDB.
+- **Modern Full-Stack Architecture**: 
+  - **Backend**: FastAPI with asynchronous query processing.
+  - **Frontend**: Vite + React + Tailwind CSS for a premium, interactive chat experience.
+- **Analytical Reporting**: A detailed recommendation report comparing the performance of each strategy.
 
 ---
 
-## Setup
+## 🚀 Setup & Installation
 
-### Python (backend and pipelines)
+### 1. Prerequisites
+- Python 3.9+
+- Node.js 18+
+- [Git LFS](https://git-lfs.github.com/) (Recommended for large datasets)
 
+### 2. Backend Setup
 ```bash
+# Install dependencies
 pip install -r requirements.txt
+
+# Configure environment
+cp config/config.example.yaml config/config.yaml
 ```
+Edit `config/config.yaml` to include your API keys (e.g., **Groq** or **Google Gemini**). 
+> [!IMPORTANT]
+> Do not use OpenAI API keys. This project is optimized for free/open-weight LLM providers.
 
-Copy `config/config.example.yaml` to `config/config.yaml` and set:
-
-- `dataset_path` — path to `dataset/crag_task_1_and_2_dev_v4.jsonl`
-- `embedding_model` — e.g. `all-MiniLM-L6-v2`
-- `generation_model` — model name for the LLM you use for answer generation (see below)
-- `top_k` — number of chunks to retrieve per query
-
-**LLM / API policy:** **Do not use an OpenAI API key.** Use a **Groq** API key, or a **free** option such as **Google Gemini** (free tier), or another free/local LLM.
-
-Do not commit `config.yaml` if it contains API keys.
-
-### Frontend (React)
-
+### 3. Frontend Setup
 ```bash
 cd frontend
 npm install
@@ -37,40 +41,57 @@ npm install
 
 ---
 
-## Dataset
+## 📊 Dataset
+This project utilizes the **CRAG Task 1 & 2 dev v4** dataset.
+1. Download the dataset: [crag_task_1_and_2_dev_v4.jsonl.bz2](https://github.com/facebookresearch/CRAG/raw/refs/heads/main/data/crag_task_1_and_2_dev_v4.jsonl.bz2)
+2. Decompress and place it in the `dataset/` directory.
+3. Final path: `dataset/crag_task_1_and_2_dev_v4.jsonl`
 
-This assignment uses the **CRAG Task 1 & 2 dev v4** dataset. 
-Download the dataset and place it in the `dataset/` folder yourself.
-
-- **Download (Task 1 & 2, compressed):** [crag_task_1_and_2_dev_v4.jsonl.bz2](https://github.com/facebookresearch/CRAG/raw/refs/heads/main/data/crag_task_1_and_2_dev_v4.jsonl.bz2)
-- Decompress the file (e.g. with 7-Zip or `bzip2 -d`), then put the resulting `crag_task_1_and_2_dev_v4.jsonl` inside the `dataset/` folder.
-- **Path after setup:** `dataset/crag_task_1_and_2_dev_v4.jsonl`
-- **Format:** One JSON object per line. Fields: `query`, `answer`, `alt_ans`, `search_results` (list of up to 5 items; each has `page_snippet`).
-- **Schema:** See `docs/dataset.md`.
-
-All `page_snippet` texts from all rows form the global corpus. Build one embedding index from this corpus; all four pipelines retrieve from it.
+The snippet texts from this dataset are used to build the global vector index.
 
 ---
 
-## Running the project
+## 🛠️ Usage
 
-**Evaluation (run from project root):**
-
+### Running the Evaluation
+To run the automated benchmark across all implemented pipelines:
 ```bash
 python run_evaluation.py
 ```
 
-**Frontend (run from project root):**
+### Running the Application
+**Start the Backend:**
+```bash
+python backend/app.py
+```
+*Port: 8000*
 
+**Start the Frontend:**
 ```bash
 cd frontend
 npm run dev
 ```
-
-Open the URL shown (e.g. http://localhost:3000). You need a backend that loads the index and runs the selected pipeline; the React app will call that backend.
+*Port: 5173 (default Vite port)*
 
 ---
 
-## Folder structure
+## 📂 Project Structure
+```text
+.
+├── backend/            # FastAPI server
+├── config/             # Configuration files
+├── dataset/            # Local data storage (ignored by git)
+├── docs/               # Documentation
+├── frontend/           # React + Vite application
+├── src/
+│   ├── pipelines/      # RAG strategy implementations
+│   ├── corpus.py       # Indexing and data loading
+│   └── generation.py   # LLM interaction logic
+├── run_evaluation.py   # Evaluation script
+└── recommendation_report.md  # Final analysis
+```
 
-Do not change the folder structure. Required layout and the full case-study description are in `ASSIGNMENT.md`.
+## 📜 Recommendation Summary
+Based on our findings, **Corrective RAG (CRAG)** is the recommended strategy for production environments due to its self-correction mechanism and superior reliability with noisy web data. 
+
+For detailed benchmarks, see [recommendation_report.md](./recommendation_report.md).
