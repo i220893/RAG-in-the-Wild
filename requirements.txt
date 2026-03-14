@@ -1,0 +1,10 @@
+# RAG assignment dependencies. Add/version as needed.
+# Note: You can use any other libraries that are not listed here
+sentence-transformers
+openai
+flask
+# or: fastapi uvicorn
+pyyaml
+chromadb
+google-generativeai
+networkx
