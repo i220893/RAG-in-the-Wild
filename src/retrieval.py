@@ -9,6 +9,14 @@ def get_index():
         _GLOBAL_INDEX = load_index()
     return _GLOBAL_INDEX
 
+def get_retriever(top_k: int = None):
+    """
+    Returns a LangChain retriever object.
+    """
+    index = get_index()
+    k = top_k or 5
+    return index.vectorstore.as_retriever(search_kwargs={"k": k})
+
 def retrieve_top_k(query: str, top_k: int = None):
     """
     Standard retrieval function to be used by all pipelines.

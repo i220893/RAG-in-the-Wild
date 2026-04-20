@@ -1,7 +1,10 @@
-import google.generativeai as genai
 import yaml
 from pathlib import Path
 import time
+import os
+from langchain_ollama import ChatOllama
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
 # Load config
 def load_config():
@@ -13,36 +16,26 @@ def load_config():
 
 CONFIG = load_config()
 
-# Configure Gemini
-api_key = CONFIG.get("google_api_key")
-if api_key:
-    genai.configure(api_key=api_key)
-else:
-    import os
-    env_key = os.environ.get("GOOGLE_API_KEY")
-    if env_key:
-        genai.configure(api_key=env_key)
+# Initialize LLM
+_LLM = None
+
+def get_llm(model_id: str = None):
+    global _LLM
+    if _LLM is None or model_id is not None:
+        mid = model_id or CONFIG.get("generation_model", "qwen2.5:7b-instruct-q4_K_M")
+        _LLM = ChatOllama(
+            model=mid,
+            temperature=0
+        )
+    return _LLM
 
 def call_gemini(prompt: str, model_id: str = None) -> str:
     """
-    Central wrapper for Gemini calls with retry logic.
+    Wrapper for LLM calls using LangChain.
     """
-    mid = model_id or CONFIG.get("generation_model", "gemini-1.5-flash") # Fallback to 1.5 if 2.0 is overloaded
-    max_retries = 5
-    for attempt in range(max_retries):
-        try:
-            model = genai.GenerativeModel(mid)
-            response = model.generate_content(prompt)
-            return response.text.strip()
-        except Exception as e:
-            err_str = str(e)
-            if "429" in err_str:
-                if attempt < max_retries - 1:
-                    delay = (attempt + 1) * 60 # Wait 60, 120, 180...
-                    print(f"Rate limited (429). Attempt {attempt+1}. Waiting {delay}s...")
-                    time.sleep(delay)
-                    continue
-            raise e
+    llm = get_llm(model_id)
+    response = llm.invoke(prompt)
+    return response.content.strip()
 
 def generate_answer(query: str, context_chunks: list[dict], model_name: str = None) -> str:
     # Construct context string
@@ -50,18 +43,21 @@ def generate_answer(query: str, context_chunks: list[dict], model_name: str = No
     for i, chunk in enumerate(context_chunks):
         context_str += f"[Source {i+1}]: {chunk['text']}\n\n"
     
-    prompt = f"""You are a helpful assistant. Answer the user question accurately based ONLY on the provided context artifacts.
-If the context doesn't contain the answer, say that you don't know based on the search results.
+    prompt_template = ChatPromptTemplate.from_template("""You are a helpful assistant. Answer the user question accurately based ONLY on the provided context artifacts.
+Provide ONLY the direct, concise answer without any conversational filler or introductions.
+If the context doesn't contain the answer, say "I don't know".
 
 Context:
-{context_str}
+{context}
 
 User Question: {query}
 
-Answer:"""
+Answer:""")
 
+    chain = prompt_template | get_llm(model_name) | StrOutputParser()
+    
     try:
-        return call_gemini(prompt, model_name)
+        return chain.invoke({"context": context_str, "query": query})
     except Exception as e:
         return f"Error during generation: {str(e)}"
 

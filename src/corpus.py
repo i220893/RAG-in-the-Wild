@@ -1,9 +1,10 @@
 import os
 import yaml
-import chromadb
-from chromadb.utils import embedding_functions
-from src.data_loader import load_examples, get_passages_for_retrieval
 from pathlib import Path
+from langchain_chroma import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
+from src.data_loader import load_examples
+from langchain_core.documents import Document
 
 # Load config
 def load_config():
@@ -21,18 +22,14 @@ class CorpusIndex:
         self.chroma_path = chroma_path or CONFIG.get("chroma_path", "chroma_db")
         self.model_name = embedding_model or CONFIG.get("embedding_model", "all-MiniLM-L6-v2")
         
-        # Initialize chroma client
-        self.client = chromadb.PersistentClient(path=self.chroma_path)
-        
         # Initialize embedding function
-        self.embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name=self.model_name
-        )
+        self.embeddings = HuggingFaceEmbeddings(model_name=self.model_name)
         
-        # Get or create collection
-        self.collection = self.client.get_or_create_collection(
-            name="crag_corpus_1000",
-            embedding_function=self.embedding_fn
+        # Initialize chroma client
+        self.vectorstore = Chroma(
+            collection_name="crag_corpus_1000",
+            embedding_function=self.embeddings,
+            persist_directory=self.chroma_path
         )
 
     def build_index(self, dataset_path=None, limit=None):
@@ -43,14 +40,11 @@ class CorpusIndex:
         print(f"Building index from {path}...")
         
         # Check if collection has data already
-        if self.collection.count() > 0:
-            print(f"Index already contains {self.collection.count()} items. Moving on.")
+        if self.vectorstore._collection.count() > 0:
+            print(f"Index already contains {self.vectorstore._collection.count()} items. Moving on.")
             return
 
         documents = []
-        metadatas = []
-        ids = []
-        
         doc_set = set() # To avoid duplicate snippets
         
         count = 0
@@ -59,26 +53,24 @@ class CorpusIndex:
                 snippet = sr.get("page_snippet")
                 if snippet and snippet not in doc_set:
                     doc_set.add(snippet)
-                    documents.append(snippet)
-                    metadatas.append({
-                        "page_name": sr.get("page_name", ""),
-                        "page_url": sr.get("page_url", ""),
-                        "interaction_id": example.get("interaction_id", "")
-                    })
-                    ids.append(f"doc_{count}")
+                    
+                    doc = Document(
+                        page_content=snippet,
+                        metadata={
+                            "page_name": sr.get("page_name", ""),
+                            "page_url": sr.get("page_url", ""),
+                            "interaction_id": example.get("interaction_id", "")
+                        }
+                    )
+                    documents.append(doc)
                     count += 1
             
             if count % 100 == 0 and count > 0:
                  print(f"Processed {count} unique snippets...")
 
-        # Add to chroma in batches if large
-        batch_size = 5461 # Max batch size for chroma
-        for i in range(0, len(documents), batch_size):
-            self.collection.add(
-                documents=documents[i:i + batch_size],
-                metadatas=metadatas[i:i + batch_size],
-                ids=ids[i:i + batch_size]
-            )
+        # Add to chroma
+        if documents:
+            self.vectorstore.add_documents(documents)
             
         print(f"Finished building index with {len(documents)} snippets.")
 
@@ -87,18 +79,16 @@ class CorpusIndex:
         Retrieve top-k snippets for a query.
         """
         k = top_k or CONFIG.get("top_k", 5)
-        results = self.collection.query(
-            query_texts=[query],
-            n_results=k
-        )
+        # Using similarity_search_with_score to get distances
+        results = self.vectorstore.similarity_search_with_score(query, k=k)
         
-        # Format results
+        # Format results to match previous interface
         formatted = []
-        for i in range(len(results["documents"][0])):
+        for doc, score in results:
             formatted.append({
-                "text": results["documents"][0][i],
-                "score": results["distances"][0][i], # Note: distances, lower is better
-                "metadata": results["metadatas"][0][i]
+                "text": doc.page_content,
+                "score": score, # In Chroma/LangChain, lower distance is better
+                "metadata": doc.metadata
             })
         return formatted
 

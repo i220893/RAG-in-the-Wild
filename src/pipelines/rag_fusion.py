@@ -1,18 +1,22 @@
 from src.retrieval import retrieve_top_k
-from src.generation import generate_answer, CONFIG, call_gemini
+from src.generation import generate_answer, get_llm, call_gemini
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
 def generate_query_variants(query: str, num_variants: int = 3) -> list[str]:
     """
     Generate multiple search query variants using LLM.
     """
-    prompt = f"""Generate {num_variants} different search query variants for the given user question.
+    prompt_template = ChatPromptTemplate.from_template("""Generate {num_variants} different search query variants for the given user question.
 These variants should help capture different aspects of the information needed.
 One query per line. Do not number them.
 
-User Question: {query}"""
+User Question: {query}""")
+    
+    chain = prompt_template | get_llm() | StrOutputParser()
     
     try:
-        response_text = call_gemini(prompt)
+        response_text = chain.invoke({"num_variants": num_variants, "query": query})
         variants = [v.strip() for v in response_text.split("\n") if v.strip()]
         return variants[:num_variants]
     except Exception as e:

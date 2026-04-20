@@ -3,8 +3,13 @@
 sentence-transformers
 openai
 flask
-# or: fastapi uvicorn
 pyyaml
 chromadb
 google-generativeai
 networkx
+langchain
+langchain-community
+langchain-google-genai
+langchain-chroma
+langchain-openai
+langchain-text-splitters

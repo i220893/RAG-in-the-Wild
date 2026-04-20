@@ -2,28 +2,6 @@ import networkx as nx
 from src.retrieval import retrieve_top_k, get_index
 from src.generation import generate_answer
 
-def build_local_graph(seed_context: list[dict], index):
-    """
-    Build a local graph starting from seed chunks.
-    Augments by finding other chunks from the same page_url or domain.
-    """
-    G = nx.Graph()
-    
-    # Add seed nodes
-    for i, res in enumerate(seed_context):
-        res_id = f"seed_{i}"
-        G.add_node(res_id, **res)
-        
-        # Simulating graph relations: link chunks from the same URL
-        url = res['metadata'].get('page_url')
-        if url:
-            # We "expand" by looking for more content from the same source
-            # In a real GraphRAG we might have entity-entity links.
-            # Here we follow the metadata "same-page" Relation.
-            G.add_edge("query_seed", res_id)
-            
-    return G
-
 def run_graph_rag(query: str, top_k: int = 5):
     """
     Execute Graph RAG pipeline.
@@ -39,6 +17,8 @@ def run_graph_rag(query: str, top_k: int = 5):
     
     # Simple expansion: retrieve more chunks and filter for source overlap
     # This simulates a "graph-aware" retrieval over the same corpus metadata.
+    # In LangChain, we would typically use a SelfQueryRetriever or a MetadataRetriever,
+    # but here we follow the "graph-augmented" logic on existing corpus.
     expansion = retrieve_top_k(query, top_k=top_k * 3)
     
     # Link expansion: prioritize chunks that share metadata (interaction_id or page_url) with seeds
