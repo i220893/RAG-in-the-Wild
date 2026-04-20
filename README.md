@@ -33,11 +33,6 @@ Edit `config/config.yaml` to include your API keys (e.g., **Groq** or **Google G
 > [!IMPORTANT]
 > Do not use OpenAI API keys. This project is optimized for free/open-weight LLM providers.
 
-### 3. Frontend Setup
-```bash
-cd frontend
-npm install
-```
 
 ---
 
@@ -69,6 +64,7 @@ python backend/app.py
 **Start the Frontend:**
 ```bash
 cd frontend
+npm install
 npm run dev
 ```
 *Port: 5173 (default Vite port)*
